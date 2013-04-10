@@ -1,3 +1,4 @@
+# midl-to-xml
 #
 # Converts Microsoft IDL (MIDL) files to XML.
 #
@@ -36,6 +37,7 @@ from pyparsing import Word, Group, delimitedList, Literal, Keyword, Regex, \
     alphanums, nums, quotedString, SkipTo, restOfLine, OneOrMore, ZeroOrMore,\
     Optional, Forward, Suppress, cppStyleComment, hexnums, Combine, StringEnd,\
     ParseException, removeQuotes
+
 
 def listFiles(root_path, ext):
     result = []
@@ -247,7 +249,12 @@ def parseIDL(text):
     helpcontext = helpcontext_ + lparen + integer + rparen
 
     id_ = Keyword("id")
-    com_id = Suppress(id_) + Suppress(lparen) + identifier("id") + Suppress(rparen)
+    com_id = (
+        Suppress(id_) +
+        Suppress(lparen) +
+        identifier("id") +
+        Suppress(rparen)
+    )
 
     propget_ = Keyword("propget")
     propput_ = Keyword("propput")
@@ -362,7 +369,7 @@ def parseIDL(text):
             functions +
             Suppress(Literal("methods:")) +
             functions
-            )("definitions") +
+        )("definitions") +
         Suppress(rbrack)
     )
 
@@ -404,10 +411,14 @@ def parseIDL(text):
         coclass_body
     )
 
-
     # COM Library definition
     library_ = Keyword("library")
-    library_optional_attribute = uuid | helpstring | version
+    library_optional_attribute = (
+        uuid |
+        helpstring |
+        version
+    )
+
     library_options = Group(
         Suppress(lbrace) +
         ZeroOrMore(library_optional_attribute + Suppress(Optional(comma))) +
@@ -424,11 +435,18 @@ def parseIDL(text):
         Suppress(rbrack)
     )
 
-    library = Group(library_header +
-               library_body +
-               Suppress(semicolon))
+    library = Group(
+        library_header +
+        library_body +
+        Suppress(semicolon)
+    )
 
-    definition = (library("library") | typedef("typedef") | coclass("coclass") | interface("interface"))
+    definition = (
+        library("library") |
+        typedef("typedef") |
+        coclass("coclass") |
+        interface("interface")
+    )
     definitions << ZeroOrMore(definition)
     IDL = definitions("definitions") + StringEnd()
 
