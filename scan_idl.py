@@ -260,7 +260,7 @@ def parseIDL(text):
     propput_ = Keyword("propput")
     restricted_ = Keyword("restricted")
 
-    function_attributes = (
+    function_attribute = (
         com_id |
         helpstring |
         helpcontext |
@@ -283,22 +283,22 @@ def parseIDL(text):
         Suppress(rparen)
     )
 
-    arg_attribute = (
+    arg_attribute = Group(
         in_ |
         out_ |
         retval_ |
         optional_ |
         defaultvalue
-    )
+    )("attribute")
 
-    arg_opts = Group(
+    arg_opts = (
         Suppress(lbrace) +
         delimitedList(arg_attribute, comma) +
         Suppress(rbrace)
-    )("attributes")
+    )
 
     function_arg = Group(
-        Optional(arg_opts) +
+        Group(Optional(arg_opts))("attributes") +
         #Some functions have the arg_opts twice (ICWHistoryEvent.CategoryId)
         Suppress(Optional(arg_opts)) +
         type_specifier("type") +
@@ -316,7 +316,7 @@ def parseIDL(text):
 
     function_opts = (
         Suppress(lbrace) +
-        delimitedList(function_attributes, comma) +
+        delimitedList(function_attribute, comma) +
         Suppress(rbrace)
     )
     function = Group(
