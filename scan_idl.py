@@ -283,7 +283,7 @@ def parseIDL(text):
         Suppress(rparen)
     )
 
-    arg_attributes = (
+    arg_attribute = (
         in_ |
         out_ |
         retval_ |
@@ -291,13 +291,14 @@ def parseIDL(text):
         defaultvalue
     )
 
-    arg_opts = (
+    arg_opts = Group(
         Suppress(lbrace) +
-        delimitedList(arg_attributes, comma) +
+        delimitedList(arg_attribute, comma) +
         Suppress(rbrace)
-    )
-    function_arg = (
-        Group(Optional(arg_opts))("attributes") +
+    )("attributes")
+
+    function_arg = Group(
+        Optional(arg_opts) +
         #Some functions have the arg_opts twice (ICWHistoryEvent.CategoryId)
         Suppress(Optional(arg_opts)) +
         type_specifier("type") +
@@ -305,13 +306,13 @@ def parseIDL(text):
             ZeroOrMore(asterisk) +
             identifier("name")
         )
-    )
+    )("parameter")
 
-    function_args = Group(
+    function_args = (
         Suppress(lparen) +
         Optional(delimitedList(function_arg, comma)) +
         Suppress(rparen)
-    )("parameters")
+    )
 
     function_opts = (
         Suppress(lbrace) +
