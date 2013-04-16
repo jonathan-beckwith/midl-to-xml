@@ -268,28 +268,28 @@ def parseIDL(text):
         propput_ |
         hidden_ |
         restricted_
-    )
+    )("attribute")
 
-    in_ = Keyword("in")
-    out_ = Keyword("out")
-    retval_ = Keyword("retval")
-    optional_ = Keyword("optional")
+    in_ = Keyword("in")("attribute")
+    out_ = Keyword("out")("attribute")
+    retval_ = Keyword("retval")("attribute")
+    optional_ = Keyword("optional")("attribute")
 
     defaultvalue_ = Literal("defaultvalue")
-    defaultvalue = (
-        defaultvalue_ +
+    defaultvalue = Group(
+        Suppress(defaultvalue_) +
         Suppress(lparen) +
         (constant | identifier) +
         Suppress(rparen)
-    )
+    )("defaultvalue")
 
-    arg_attribute = Group(
+    arg_attribute = (
         in_ |
         out_ |
         retval_ |
         optional_ |
         defaultvalue
-    )("attribute")
+    )
 
     arg_opts = (
         Suppress(lbrace) +
@@ -299,7 +299,7 @@ def parseIDL(text):
 
     function_arg = Group(
         Group(Optional(arg_opts))("attributes") +
-        #Some functions have the arg_opts twice (ICWHistoryEvent.CategoryId)
+        #Some functions have the arg_opts twice
         Suppress(Optional(arg_opts)) +
         type_specifier("type") +
         Optional(
