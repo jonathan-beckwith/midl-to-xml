@@ -193,11 +193,28 @@ class Interface(object):
         return element
 
 def combine(xml1, xml2):
+
+    if xml2 is None:
+        return xml1
+    elif xml1 is None:
+        return xml2
+
     root1 = xml1.getroot()
     root2 = xml2.getroot()
-    [root2.append(x) for x in root1]
-    [root2.remove(x) for x in root2 if (x.text is None and len(x) == 0)]
-    return ET.ElementTree(root2)
+
+    if root1.tag != root2.tag:
+        raise Exception("Root tag is not the same: {0} / {1}".format(root1.tag, root2.tag))
+
+    temp = ET.Element(root1.tag)
+    temp.attrib = dict(
+        list(root1.attrib.items()) +
+        list(root2.attrib.items())
+    )
+
+    for root in [root1, root2]:
+        [temp.append(x) for x in root if len(x) > 0]
+
+    return ET.ElementTree(temp)
 
 def make_interface(xml, directory):
     interface_xml = Interface(xml)
