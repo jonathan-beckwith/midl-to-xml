@@ -377,14 +377,16 @@ def parseIDL(text):
 
     dispinterface_body = (
         Suppress(lbrack) +
-        Suppress(Literal("properties:")) +
         Group(
-            functions +
+            Suppress(Literal("properties:")) +
+            functions
+        )("properties") +
+        Group(
             Suppress(Literal("methods:")) +
             functions
-        )("definitions") +
+        )("methods") +
         Suppress(rbrack)
-    )
+    )("definitions")
 
     interface = Group(
         Optional(interface_opts)("attributes") +
