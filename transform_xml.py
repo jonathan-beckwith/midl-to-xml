@@ -129,23 +129,29 @@ class Interface(object):
             self.description = xml.findtext("attributes/helpstring")
             self.version = VERSION
             self.members = {}
+
             definitions = xml.find("definitions")
             if definitions is not None:
+                member = None
                 for x in definitions.findall('function'):
-                    member = Member(x)
-                    self.addMember(member)
-                for x in definitions.findall('methods/function'):
-                    member = Member(x)
-                    member.is_property = False
-                    self.addMember(member)
-                for x in definitions.findall('properties/function'):
-                    member = Member(x)
-                    member.is_property = True
-                    self.addMember(member)
+                    self.addMember(x)
 
-            pass
+            methods = xml.find('methods')
+            if methods is not None:
+                for x in methods:
+                    self.addMember(x)
 
-    def addMember(self, member):
+            properties = xml.find('properties')
+            if properties is not None:
+                for x in properties:
+                    self.addMember(x, True)
+
+    def addMember(self, xml, is_property=False):
+        member = Member(xml)
+
+        if is_property is not False:
+            member.is_property = True
+
         if member.name in self.members.keys():
             self.members[member.name] = self.combine_members(
                 member,
