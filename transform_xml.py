@@ -131,16 +131,28 @@ class Interface(object):
             self.members = {}
             definitions = xml.find("definitions")
             if definitions is not None:
-                for x in definitions:
+                for x in definitions.findall('function'):
                     member = Member(x)
-                    if member.name in self.members.keys():
-                        self.members[member.name] = self.combine_members(
-                            member,
-                            self.members[member.name]
-                        )
-                    else:
-                        self.members[member.name] = member
+                    self.addMember(member)
+                for x in definitions.findall('methods/function'):
+                    member = Member(x)
+                    member.is_property = False
+                    self.addMember(member)
+                for x in definitions.findall('properties/function'):
+                    member = Member(x)
+                    member.is_property = True
+                    self.addMember(member)
+
             pass
+
+    def addMember(self, member):
+        if member.name in self.members.keys():
+            self.members[member.name] = self.combine_members(
+                member,
+                self.members[member.name]
+            )
+        else:
+            self.members[member.name] = member
 
     def combine_members(self, m1, m2):
         temp = m1
