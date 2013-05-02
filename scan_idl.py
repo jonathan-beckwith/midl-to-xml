@@ -167,7 +167,7 @@ def parseIDL(text):
     helpstring_ = Literal("helpstring")
     helpstring = Combine(
         Suppress(helpstring_ + lparen) +
-        stringLiteral("helpstring") +
+        stringLiteral +
         Suppress(rparen)
     )
 
@@ -260,9 +260,8 @@ def parseIDL(text):
     propput_ = Keyword("propput")
     restricted_ = Keyword("restricted")
 
-    function_attribute = (
+    function_attributes = (
         com_id |
-        helpstring |
         helpcontext |
         propget_ |
         propput_ |
@@ -270,24 +269,33 @@ def parseIDL(text):
         restricted_
     )("attribute")
 
+    function_attribute = (
+        helpstring("helpstring") |
+        function_attributes
+    )
+
     in_ = Keyword("in")("attribute")
     out_ = Keyword("out")("attribute")
     retval_ = Keyword("retval")("attribute")
     optional_ = Keyword("optional")("attribute")
 
     defaultvalue_ = Literal("defaultvalue")
-    defaultvalue = Group(
+    defaultvalue = (
         Suppress(defaultvalue_) +
         Suppress(lparen) +
         (constant | identifier) +
         Suppress(rparen)
     )("defaultvalue")
 
-    arg_attribute = (
+    arg_attributes = (
         in_ |
         out_ |
         retval_ |
-        optional_ |
+        optional_
+    )("attribute")
+
+    arg_attribute = (
+        arg_attributes |
         defaultvalue
     )
 
@@ -335,9 +343,8 @@ def parseIDL(text):
 
     #interface definition
     interface_ = Keyword("interface") | Keyword("dispinterface")
-    interface_attribute = (
+    interface_attributes = (
         uuid |
-        helpstring |
         helpcontext |
         version |
         dual_ |
@@ -350,6 +357,11 @@ def parseIDL(text):
         source_ |
         oleautomation_ |
         appobject_
+    )("attribute")
+
+    interface_attribute = (
+        helpstring("helpstring") |
+        interface_attributes
     )
 
     interface_opts = Group(
