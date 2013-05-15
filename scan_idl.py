@@ -31,22 +31,12 @@ import pdb
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 from pyparsing import Word, Group, delimitedList, Literal, Keyword, Regex, \
     alphanums, nums, quotedString, SkipTo, restOfLine, OneOrMore, ZeroOrMore,\
     Optional, Forward, Suppress, cppStyleComment, hexnums, Combine, StringEnd,\
     ParseException, removeQuotes
-
-
-def listFiles(root_path, ext):
-    result = []
-    for root, path, files in os.walk(root_path):
-        result += [os.path.join(root, x) for x in files
-                   if os.path.splitext(x)[1] == ext]
-
-    return result
-
 
 def parseIDL(text):
 
@@ -59,7 +49,10 @@ def parseIDL(text):
     rbrace = Literal(']')
     lparen = Literal('(')
     rparen = Literal(')')
-    comma = Literal(',')
+    comma = (
+        Literal(',') |
+        Literal(';')
+    )
     dot = Literal('.')
     semicolon = Literal(';')
     colon = Literal(':')
@@ -146,10 +139,14 @@ def parseIDL(text):
         identifier) + Suppress(Optional(ZeroOrMore(asterisk)))
 
     uuid_ = Literal("uuid")
-    uuid_number = Regex(r"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-"
+    uuid_number_ = Regex(r"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-"
                         r"[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}")
 
-    uuid = Suppress(uuid_ + lparen) + uuid_number("uuid") + Suppress(rparen)
+    uuid = (
+        Suppress(uuid_ + lparen) + 
+        (uuid_number_ | stringLiteral)("uuid") +
+        Suppress(rparen)
+    )
 
     integer = Combine(Optional(minus) + Word(nums))
     hex_number = Regex(r"0x[A-Fa-f0-9]+")
@@ -215,7 +212,7 @@ def parseIDL(text):
         Suppress(typedef_) +
         Group(Optional(typedef_attribute_list))("attributes") +
         type_specifier("type") +
-        declarator_list("name")
+        Optional(declarator_list)
     )
 
     typedef = Group(
@@ -223,7 +220,7 @@ def parseIDL(text):
         Suppress(lbrack) +
         Group(ZeroOrMore(enum_definition("constant")))("constants") +
         Suppress(rbrack) +
-        Suppress(declarator_list) +
+        declarator_list("name") +
         Suppress(semicolon)
     )
 
@@ -241,7 +238,7 @@ def parseIDL(text):
     pointer_default = (
         Suppress(pointer_default_) +
         Suppress(lparen) +
-        (ptr_ | ref_ | unique_) +
+        (ptr_ | ref_ | unique_)("pointer_default") +
         Suppress(rparen)
     )
 
@@ -287,11 +284,36 @@ def parseIDL(text):
         Suppress(rparen)
     )("defaultvalue")
 
+    size_is_ = Keyword("size_is")
+    size_is = (
+        size_is_ + 
+        Suppress(lparen) +
+        delimitedList(
+            Optional(
+                Suppress(ZeroOrMore(asterisk)) +
+                identifier
+            ), comma) + 
+        Suppress(rparen)
+    )
+
+    max_is_ = Keyword("max_is")
+    max_is = (
+        max_is_ + 
+        Suppress(lparen) +
+        delimitedList(
+            identifier,
+            comma
+        ) +
+        Suppress(rparen)
+    )
+
     arg_attributes = (
         in_ |
         out_ |
         retval_ |
-        optional_
+        optional_ |
+        size_is |
+        max_is
     )("attribute")
 
     arg_attribute = (
@@ -309,11 +331,13 @@ def parseIDL(text):
         Group(Optional(arg_opts))("attributes") +
         #Some functions have the arg_opts twice
         Suppress(Optional(arg_opts)) +
-        type_specifier("type") +
+        Optional(type_specifier("type")) +
         Optional(
-            ZeroOrMore(asterisk) +
+            Suppress(ZeroOrMore(asterisk)) +
             identifier("name")
-        )
+        ) + 
+        Optional(lbrace) +
+        Optional(rbrace)
     )("parameter")
 
     function_args = (
@@ -340,13 +364,30 @@ def parseIDL(text):
     source_ = Keyword("source")
     oleautomation_ = Keyword("oleautomation")
     appobject_ = Keyword("appobject")
+   
+    endpoint_ = Literal("endpoint")
+    protocol_sequence = stringLiteral
+    endpoint_port  = stringLiteral
+    endpoint_arg = protocol_sequence + Optional(Literal(":") + endpoint_port)
+    endpoint = Group(
+        Suppress(endpoint_ + lparen) +
+        delimitedList(endpoint_arg("endpoint")) +
+        Suppress(rparen)
+    )
+
+    helper_ = Literal("helper")
+    helper = (
+        Suppress(helper_  + lparen) +
+        stringLiteral +
+        Suppress(rparen)
+    )
 
     #interface definition
     interface_ = Keyword("interface") | Keyword("dispinterface")
     interface_attributes = (
-        uuid |
+        uuid("uuid") |
         helpcontext |
-        version |
+        version("version") |
         dual_ |
         object_ |
         pointer_default |
@@ -356,7 +397,9 @@ def parseIDL(text):
         hidden_ |
         source_ |
         oleautomation_ |
-        appobject_
+        appobject_ |
+        endpoint("endpoints") |
+        helper("helper")
     )("attribute")
 
     interface_attribute = (
@@ -485,6 +528,7 @@ def parseIDL(text):
     pp_directive = OneOrMore(pp_conditional | pp_include)
     midl_pragma_ = Keyword("midl_pragma")
     midl_pragma = midl_pragma_ + restOfLine
+    pp_import = Literal('import') + restOfLine
 
     IDL.ignore(import_)
     IDL.ignore(pp_define)
@@ -493,6 +537,7 @@ def parseIDL(text):
     IDL.ignore(pp_conditional)
     IDL.ignore(pp_if)
     IDL.ignore(pp_endif)
+    IDL.ignore(pp_import)
     #IDL.ignore(pp_else)
     IDL.ignore(pp_include)
     IDL.ignore(midl_pragma)
@@ -506,15 +551,26 @@ def parseIDL(text):
     return tokens
 
 
+def listFiles(root_path, ext):
+    log.info("Scanning Directory: {0}".format(root_path))
+    result = []
+    for root, path, files in os.walk(root_path):
+        result += [os.path.join(root, x) for x in files
+                   if os.path.splitext(x)[1] == ext]
+
+    return result
+
+
 def main():
-    logger.setLevel(logging.DEBUG)
+    log.setLevel(logging.DEBUG)
 
     idl_files = listFiles('idl', '.idl')
 
     for x in idl_files:
         tokens = []
-        logger.debug(x)
+        log.debug(x)
         with open(x) as f:
+            log.info("Parsing File: {0}".format(x))
             try:
                 tokens = parseIDL(f.read())
                 with open(x + '.xml', 'w') as result:
