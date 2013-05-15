@@ -1,0 +1,50 @@
+//
+// Example2.idl
+//
+
+// import "example.idl","oaidl.idl"; 
+
+[
+	uuid(a03d1422-b1ec-11d0-8c3a-00c04fc31d2f),
+	helpstring("IFace3 interface"),
+	pointer_default(unique);
+	dual,
+	oleautomation
+] 
+interface IFace3 : IDispatch
+{
+   HRESULT MethodD([in] BSTR OrderIn,
+                   [out, retval] * pTakeOut);
+}; //end IFace3 def
+
+[
+	uuid(a03d1423-b1ec-11d0-8c3a-00c04fc31d2f),
+	version(1.0),
+	helpstring("Example Type Library"),
+] library ExampleLib
+{
+	importlib("stdole32.tlb");
+	interface IFace3;
+	[
+		uuid(a03d1424-b1ec-11d0-8c3a-00c04fc31d2f),
+		helpstring("Breakfast Component Class")
+	] coclass BkfstComponent
+	{
+		[default]interface IFace1;
+		interface IFace2
+	}; //end coclass def
+
+	[
+		uuid(a03d1424-b1ec-11d0-8c3a-00c04fc31d2f),
+		helpstring("IFace4 interface"),
+		pointer_default(unique);
+		dual,
+		oleautomation
+	] 
+	interface IFace4 : IDispatch
+	{
+		[propput] HRESULT MethodD([in] BSTR OrderIn);
+		[propget] HRESULT MethodE([out, retval] * pTakeOut);
+	}; //end IFace4 def
+
+}; //end library def
